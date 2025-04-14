@@ -244,9 +244,11 @@ class _RouteTrackerScreenState extends State<RouteTrackerScreen> {
               // Stats view (bottom 40%)
               Expanded(
                 flex: 4,
-                child: _activeRoute != null 
-                  ? _buildActiveRouteStats() 
-                  : _buildDistanceCalculator(),
+                child: SingleChildScrollView(
+                  child: _activeRoute != null 
+                    ? _buildActiveRouteStats() 
+                    : _buildDistanceCalculator(),
+                ),
               ),
             ],
           )
@@ -345,10 +347,10 @@ class _RouteTrackerScreenState extends State<RouteTrackerScreen> {
   Widget _buildActiveRouteStats() {
     final isTracking = _activeRoute != null;
     
-    return Container(
+    return Padding(
       padding: const EdgeInsets.all(16),
-      color: Colors.white,
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Title
@@ -385,7 +387,7 @@ class _RouteTrackerScreenState extends State<RouteTrackerScreen> {
             ],
           ),
           
-          const Spacer(),
+          const SizedBox(height: 16),
           
           // Action buttons
           if (isTracking)
@@ -423,6 +425,7 @@ class _RouteTrackerScreenState extends State<RouteTrackerScreen> {
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
