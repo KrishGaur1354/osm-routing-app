@@ -11,6 +11,7 @@ import '../services/location_service.dart';
 import '../services/poi_service.dart';
 import '../services/route_planning_service.dart';
 import '../services/heatmap_service.dart';
+import '../services/distance_calculator_service.dart';
 import '../widgets/custom_marker.dart';
 import '../widgets/map_control_panel.dart';
 import '../widgets/search_panel.dart';
@@ -30,10 +31,11 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   final POIService _poiService = POIService();
   final RoutePlanningService _routePlanningService = RoutePlanningService();
   final HeatmapService _heatmapService = HeatmapService();
+  final DistanceCalculatorService _distanceCalculator = DistanceCalculatorService();
   final MapController _mapController = MapController();
   
-  // Default center position (will be updated with user's location)
-  LatLng _center = const LatLng(37.7749, -122.4194); // San Francisco as default
+  // Default center position (Delhi)
+  late LatLng _center;
   
   // Map style/source options
   String _currentMapStyle = 'streets';
@@ -69,6 +71,8 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    // Set default center to Pitampura, Delhi
+    _center = _distanceCalculator.delhiLocation;
     _initializeLocation();
     _initializePOIs();
     _initializeRoutes();

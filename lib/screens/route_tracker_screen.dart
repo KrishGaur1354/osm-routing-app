@@ -6,6 +6,7 @@ import 'package:flutter_map/flutter_map.dart';
 import '../models/route.dart';
 import '../services/route_service.dart';
 import '../services/location_service.dart';
+import '../services/distance_calculator_service.dart';
 
 class RouteTrackerScreen extends StatefulWidget {
   const RouteTrackerScreen({Key? key}) : super(key: key);
@@ -17,6 +18,7 @@ class RouteTrackerScreen extends StatefulWidget {
 class _RouteTrackerScreenState extends State<RouteTrackerScreen> {
   final RouteService _routeService = RouteService();
   final LocationService _locationService = LocationService();
+  final DistanceCalculatorService _distanceCalculator = DistanceCalculatorService();
   final MapController _mapController = MapController();
   
   // State variables
@@ -29,6 +31,13 @@ class _RouteTrackerScreenState extends State<RouteTrackerScreen> {
   Duration _duration = Duration.zero;
   double _distance = 0.0;
   double _avgSpeed = 0.0;
+  
+  // Distance and time between points
+  LatLng? _selectedStartPoint;
+  LatLng? _selectedEndPoint;
+  double _selectedDistance = 0.0;
+  Duration _selectedDuration = Duration.zero;
+  TransportMode _selectedTransportMode = TransportMode.walking;
   
   @override
   void initState() {
@@ -172,6 +181,44 @@ class _RouteTrackerScreenState extends State<RouteTrackerScreen> {
     );
   }
   
+  void _selectStartPoint(LatLng point) {
+    setState(() {
+      _selectedStartPoint = point;
+      _calculateSelectedRoute();
+    });
+  }
+  
+  void _selectEndPoint(LatLng point) {
+    setState(() {
+      _selectedEndPoint = point;
+      _calculateSelectedRoute();
+    });
+  }
+  
+  void _calculateSelectedRoute() {
+    if (_selectedStartPoint != null && _selectedEndPoint != null) {
+      final distance = _distanceCalculator.calculateDistance(
+        _selectedStartPoint!,
+        _selectedEndPoint!,
+      );
+      
+      setState(() {
+        _selectedDistance = distance;
+        _selectedDuration = _distanceCalculator.estimateTravelTime(
+          distance, 
+          _selectedTransportMode,
+        );
+      });
+    }
+  }
+  
+  void _changeTransportMode(TransportMode mode) {
+    setState(() {
+      _selectedTransportMode = mode;
+      _calculateSelectedRoute();
+    });
+  }
+  
   @override
   void dispose() {
     _statsUpdateTimer.cancel();
@@ -197,14 +244,13 @@ class _RouteTrackerScreenState extends State<RouteTrackerScreen> {
               // Stats view (bottom 40%)
               Expanded(
                 flex: 4,
-                child: _buildStatsView(),
+                child: _activeRoute != null 
+                  ? _buildActiveRouteStats() 
+                  : _buildDistanceCalculator(),
               ),
             ],
           )
-        : const Center(
-            child: CircularProgressIndicator(),
-          ),
-      floatingActionButton: _buildActionButton(),
+        : const Center(child: CircularProgressIndicator()),
     );
   }
   
@@ -212,56 +258,29 @@ class _RouteTrackerScreenState extends State<RouteTrackerScreen> {
     return FlutterMap(
       mapController: _mapController,
       options: MapOptions(
-        initialCenter: const LatLng(37.7749, -122.4194), // Default center
-        initialZoom: 14.0,
+        initialCenter: _activeRoute?.points.isNotEmpty == true 
+            ? _activeRoute!.points.last.position 
+            : const LatLng(0, 0),
+        initialZoom: 15.0,
+        onTap: (_, point) {
+          // Handle map tap
+        },
       ),
       children: [
         TileLayer(
-          urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-          subdomains: const ['a', 'b', 'c'],
+          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
           userAgentPackageName: 'com.example.osm_app',
         ),
-        
-        // Draw route polyline
-        if (_activeRoute != null && _activeRoute!.points.length > 1)
+        MarkerLayer(
+          markers: _buildMarkersForMap(),
+        ),
+        if (_activeRoute?.points.isNotEmpty == true)
           PolylineLayer(
             polylines: [
               Polyline(
                 points: _activeRoute!.points.map((p) => p.position).toList(),
-                color: _activeRoute!.color,
+                color: Colors.blue,
                 strokeWidth: 4.0,
-              ),
-            ],
-          ),
-          
-        // Show start point
-        if (_activeRoute != null && _activeRoute!.points.isNotEmpty)
-          MarkerLayer(
-            markers: [
-              // Start marker
-              Marker(
-                point: _activeRoute!.points.first.position,
-                width: 20,
-                height: 20,
-                child: const Icon(
-                  Icons.trip_origin,
-                  color: Colors.green,
-                  size: 20,
-                ),
-              ),
-              
-              // Current position marker
-              Marker(
-                point: _activeRoute!.points.last.position,
-                width: 20,
-                height: 20,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.blue,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
-                ),
               ),
             ],
           ),
@@ -269,7 +288,61 @@ class _RouteTrackerScreenState extends State<RouteTrackerScreen> {
     );
   }
   
-  Widget _buildStatsView() {
+  List<Marker> _buildMarkersForMap() {
+    final List<Marker> markers = [];
+    
+    // Add current position marker if we have one
+    if (_activeRoute?.points.isNotEmpty == true) {
+      final lastPoint = _activeRoute!.points.last.position;
+      markers.add(
+        Marker(
+          point: lastPoint,
+          width: 25,
+          height: 25,
+          child: const Icon(
+            Icons.location_on,
+            color: Colors.red,
+            size: 25,
+          ),
+        ),
+      );
+    }
+    
+    // Add start/end point markers if selected
+    if (_selectedStartPoint != null) {
+      markers.add(
+        Marker(
+          point: _selectedStartPoint!,
+          width: 25,
+          height: 25,
+          child: const Icon(
+            Icons.play_circle,
+            color: Colors.green,
+            size: 25,
+          ),
+        ),
+      );
+    }
+    
+    if (_selectedEndPoint != null) {
+      markers.add(
+        Marker(
+          point: _selectedEndPoint!,
+          width: 25,
+          height: 25,
+          child: const Icon(
+            Icons.stop_circle,
+            color: Colors.red,
+            size: 25,
+          ),
+        ),
+      );
+    }
+    
+    return markers;
+  }
+  
+  Widget _buildActiveRouteStats() {
     final isTracking = _activeRoute != null;
     
     return Container(
@@ -280,7 +353,7 @@ class _RouteTrackerScreenState extends State<RouteTrackerScreen> {
         children: [
           // Title
           Text(
-            isTracking ? _activeRoute!.name : 'Not Tracking',
+            _activeRoute!.name,
             style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -346,6 +419,191 @@ class _RouteTrackerScreenState extends State<RouteTrackerScreen> {
     );
   }
   
+  Widget _buildDistanceCalculator() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Distance Calculator',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildLocationCard(
+                  'Start',
+                  _selectedStartPoint != null
+                    ? '${_selectedStartPoint!.latitude.toStringAsFixed(4)}, ${_selectedStartPoint!.longitude.toStringAsFixed(4)}'
+                    : 'Select on map',
+                  Icons.location_on,
+                  Colors.green,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildLocationCard(
+                  'End',
+                  _selectedEndPoint != null
+                    ? '${_selectedEndPoint!.latitude.toStringAsFixed(4)}, ${_selectedEndPoint!.longitude.toStringAsFixed(4)}'
+                    : 'Select on map',
+                  Icons.flag,
+                  Colors.red,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildTransportSelector(),
+          const SizedBox(height: 16),
+          _buildCalculationResults(),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => _startTracking(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              child: const Text('START TRACKING NEW ROUTE'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildLocationCard(String title, String value, IconData icon, Color color) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: color, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              value,
+              style: Theme.of(context).textTheme.bodySmall,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildTransportSelector() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        _buildTransportOption(TransportMode.walking, Icons.directions_walk, 'Walk'),
+        _buildTransportOption(TransportMode.cycling, Icons.directions_bike, 'Cycle'),
+        _buildTransportOption(TransportMode.driving, Icons.directions_car, 'Drive'),
+        _buildTransportOption(TransportMode.transit, Icons.directions_bus, 'Transit'),
+      ],
+    );
+  }
+  
+  Widget _buildTransportOption(TransportMode mode, IconData icon, String label) {
+    final isSelected = _selectedTransportMode == mode;
+    
+    return InkWell(
+      onTap: () => _changeTransportMode(mode),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? Theme.of(context).colorScheme.primary.withOpacity(0.2) : null,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          children: [
+            Icon(
+              icon,
+              color: isSelected ? Theme.of(context).colorScheme.primary : null,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected ? Theme.of(context).colorScheme.primary : null,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildCalculationResults() {
+    if (_selectedStartPoint == null || _selectedEndPoint == null) {
+      return const Padding(
+        padding: EdgeInsets.all(8.0),
+        child: Text('Select start and end points on the map'),
+      );
+    }
+    
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _buildResultItem(
+              'Distance',
+              _distanceCalculator.formatDistance(_selectedDistance),
+              Icons.straighten,
+            ),
+            _buildResultItem(
+              'Est. Time',
+              _distanceCalculator.formatDuration(_selectedDuration),
+              Icons.timer,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildResultItem(String label, String value, IconData icon) {
+    return Column(
+      children: [
+        Icon(icon, color: Theme.of(context).colorScheme.primary),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        Text(
+          value,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+  
   Widget _buildStatCard({
     required String title,
     required String value,
@@ -378,18 +636,6 @@ class _RouteTrackerScreenState extends State<RouteTrackerScreen> {
         ),
       ),
     );
-  }
-  
-  Widget _buildActionButton() {
-    final isTracking = _activeRoute != null;
-    
-    return isTracking
-        ? const SizedBox.shrink() // No FAB when tracking
-        : FloatingActionButton.extended(
-            onPressed: _startTracking,
-            icon: const Icon(Icons.play_arrow),
-            label: const Text('Start Tracking'),
-          );
   }
   
   String _formatDuration(Duration duration) {

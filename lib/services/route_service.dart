@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 
 import '../models/route.dart';
 import 'location_service.dart';
+import 'distance_calculator_service.dart';
 
 class RouteService {
   // Singleton pattern
@@ -39,6 +40,79 @@ class RouteService {
   // Initialize service
   Future<void> initialize() async {
     await _loadSavedRoutes();
+    
+    // If no saved routes, generate some dummy ones
+    if (_savedRoutes.isEmpty) {
+      await _generateDummyRoutes();
+    }
+  }
+  
+  // Generate dummy routes for demonstration
+  Future<void> _generateDummyRoutes() async {
+    final distanceCalculator = DistanceCalculatorService();
+    final dummyRouteCoordinates = distanceCalculator.generateDummyRoutes();
+    final routeNames = [
+      'Morning Run to Rohini',
+      'Weekend Trip to Connaught Place',
+      'Evening Walk to India Gate',
+      'Historical Tour to Red Fort'
+    ];
+    final routeDescriptions = [
+      'Quick morning jog through local streets to Rohini',
+      'Weekend exploration of central Delhi shopping district',
+      'Beautiful evening stroll to the iconic India Gate',
+      'Cultural exploration of the historic Red Fort'
+    ];
+    final routeColors = [
+      Colors.blue,
+      Colors.green,
+      Colors.orange,
+      Colors.red,
+    ];
+    
+    // Generate routes with different dates
+    final now = DateTime.now();
+    
+    for (int i = 0; i < dummyRouteCoordinates.length; i++) {
+      final coordinates = dummyRouteCoordinates[i];
+      final routePoints = <RoutePoint>[];
+      
+      // Create route with points spaced 1 minute apart
+      final startTime = now.subtract(Duration(days: i * 2 + 1));
+      
+      for (int j = 0; j < coordinates.length; j++) {
+        final point = RoutePoint(
+          position: coordinates[j],
+          timestamp: startTime.add(Duration(minutes: j)),
+          speed: 5.0 + (j * 0.2), // Gradually increasing speed
+          elevation: 100 + (j * 5.0), // Gradually increasing elevation
+        );
+        routePoints.add(point);
+      }
+      
+      // Create the route
+      final route = RouteTrack(
+        id: const Uuid().v4(),
+        name: routeNames[i],
+        startTime: startTime,
+        endTime: startTime.add(Duration(minutes: coordinates.length - 1)),
+        points: routePoints,
+        color: routeColors[i],
+        description: routeDescriptions[i],
+        isFavorite: i == 0 || i == 2, // Make a couple favorites
+      );
+      
+      _savedRoutes.add(route);
+    }
+    
+    // Sort by date (newest first)
+    _savedRoutes.sort((a, b) => b.startTime.compareTo(a.startTime));
+    
+    // Notify listeners
+    _savedRoutesController.add(_savedRoutes);
+    
+    // Save to storage
+    await _persistRoutes();
   }
   
   // Start tracking a new route

@@ -12,6 +12,11 @@ A Flutter mobile application that uses OpenStreetMap with interactive features f
 - Route statistics (distance, duration, average speed)
 - Saved routes history with favorites
 - Modern Material Design UI
+- Dark and light mode toggle
+- Distance and time calculator between locations
+- PDF reports for dashboard and routes
+- AI-powered route assistant using Gemini API
+- Default location set to Pitampura, Delhi with sample routes
 
 ## Getting Started
 
@@ -22,17 +27,18 @@ A Flutter mobile application that uses OpenStreetMap with interactive features f
 - Android Studio / VS Code with Flutter extensions
 - Android SDK (for Android development)
 - Xcode (for iOS development)
+- Gemini API key (for the chat assistant feature)
 
 ### Installation
 
 1. Clone this repository:
 ```bash
-git clone https://github.com/yourusername/osm_app.git
+git clone https://github.com/KrishGaur1354/osm-routing-app.git
 ```
 
 2. Navigate to the project folder:
 ```bash
-cd osm_app
+cd osm-routing-app
 ```
 
 3. Install dependencies:
@@ -40,10 +46,41 @@ cd osm_app
 flutter pub get
 ```
 
-4. Run the app:
+4. Add your Gemini API key:
+   - Open `lib/screens/chat_screen.dart`
+   - Replace `ADD_YOUR_GEMINI_API_KEY_HERE` with your actual API key
+
+5. Run the app:
 ```bash
 flutter run
 ```
+
+### Building an APK
+
+#### Option 1: Using GitHub Actions (Recommended)
+
+If you don't have the Android SDK installed locally, you can use GitHub Actions to build the APK:
+
+1. Fork this repository on GitHub
+2. Make your changes and push them to your fork
+3. The GitHub Actions workflow will automatically build the APK
+4. Go to the "Actions" tab in your GitHub repository
+5. Click on the latest workflow run
+6. Download the APK from the "Artifacts" section
+
+#### Option 2: Building Locally
+
+To build a release APK locally:
+
+1. Make sure you have Android SDK installed and configured
+2. Set the ANDROID_HOME environment variable:
+   - Windows: `set ANDROID_HOME=C:\Users\YourUsername\AppData\Local\Android\Sdk`
+   - Linux/macOS: `export ANDROID_HOME=$HOME/Android/Sdk`
+3. Build the APK:
+```bash
+flutter build apk --release
+```
+4. The APK will be located at: `build/app/outputs/flutter-apk/app-release.apk`
 
 ## Usage
 
@@ -54,15 +91,25 @@ flutter run
 - Add and manage custom markers
 
 ### Route Tracker
+- Calculate distance and time between locations
 - Start tracking a new route
 - View real-time statistics
 - Save completed routes
 
-### Saved Routes
-- View list of previously saved routes
-- Check route details and statistics
-- Mark favorite routes
-- Share routes with others
+### Dashboard
+- View activity summary with statistics
+- See weekly and monthly activity charts
+- Download PDF reports of your activities
+
+### Profile
+- Toggle between dark and light mode
+- Update personal information
+- Configure app settings
+
+### Route Assistant
+- Chat with the AI assistant about your routes
+- Get navigation advice
+- Ask questions about tracked activities
 
 ## Dependencies
 
@@ -74,6 +121,22 @@ flutter run
 - shared_preferences: For local storage
 - intl: For date formatting
 - uuid: For generating unique IDs
+- pdf: For generating PDF reports
+- path_provider: For file system access
+- open_file: For opening PDF files
+- flutter_chat_ui: For chat interface
+- flutter_chat_types: For chat message types
+- google_generative_ai: For Gemini API integration
+- provider: For state management
+- google_fonts: For custom typography
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/my-new-feature`)
+3. Commit your changes (`git commit -am 'Add some feature'`)
+4. Push to the branch (`git push origin feature/my-new-feature`)
+5. Create a new Pull Request
 
 ## License
 
@@ -83,3 +146,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 - OpenStreetMap contributors for the map data
 - Flutter and Dart teams for the amazing framework
+- Google for the Gemini API
